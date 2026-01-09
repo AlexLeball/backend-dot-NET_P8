@@ -1,4 +1,5 @@
 ﻿using GpsUtil.Location;
+using System.Linq;
 using TourGuide.LibrairiesWrappers.Interfaces;
 using TourGuide.Services.Interfaces;
 using TourGuide.Users;
@@ -8,6 +9,8 @@ namespace TourGuide.Services;
 public class RewardsService : IRewardsService
 {
     private const double StatuteMilesPerNauticalMile = 1.15077945;
+
+    //default buffer for proximity is 10 miles this can be changed via the setProximityBuffer method
     private readonly int _defaultProximityBuffer = 10;
     private int _proximityBuffer;
     private readonly int _attractionProximityRange = 200;
@@ -18,38 +21,62 @@ public class RewardsService : IRewardsService
     public RewardsService(IGpsUtil gpsUtil, IRewardCentral rewardCentral)
     {
         _gpsUtil = gpsUtil;
-        _rewardsCentral =rewardCentral;
+        _rewardsCentral = rewardCentral;
         _proximityBuffer = _defaultProximityBuffer;
     }
 
+    // Set proximity buffer to desired value
     public void SetProximityBuffer(int proximityBuffer)
     {
         _proximityBuffer = proximityBuffer;
     }
 
+    // Reset proximity buffer to default value
     public void SetDefaultProximityBuffer()
     {
         _proximityBuffer = _defaultProximityBuffer;
     }
 
+    // Calculate rewards for a user based on their visited locations and nearby attractions
     public void CalculateRewards(User user)
     {
-        count++;
-        List<VisitedLocation> userLocations = user.VisitedLocations;
-        List<Attraction> attractions = _gpsUtil.GetAttractions();
+        var attractions = _gpsUtil.GetAttractions();
 
-        foreach (var visitedLocation in userLocations)
+        // Snapshot of current rewards to prevent modifying collection while iterating
+        var rewardedAttractions = user.UserRewards
+            .Select(r => r.Attraction.AttractionId)
+            .ToHashSet();
+
+        // Take a snapshot of visited locations to avoid modification issues
+        var visitedLocationsSnapshot = user.VisitedLocations.ToList();
+
+        // List to collect rewards to add after iteration
+        var rewardsToAdd = new List<UserReward>();
+
+        foreach (var visitedLocation in visitedLocationsSnapshot)
         {
             foreach (var attraction in attractions)
             {
-                if (!user.UserRewards.Any(r => r.Attraction.AttractionName == attraction.AttractionName))
+                if (rewardedAttractions.Contains(attraction.AttractionId))
+                    continue;
+
+                if (NearAttraction(visitedLocation, attraction))
                 {
-                    if (NearAttraction(visitedLocation, attraction))
-                    {
-                        user.AddUserReward(new UserReward(visitedLocation, attraction, GetRewardPoints(attraction, user)));
-                    }
+                    rewardsToAdd.Add(new UserReward(
+                        visitedLocation,
+                        attraction,
+                        GetRewardPoints(attraction, user)
+                    ));
+
+                    rewardedAttractions.Add(attraction.AttractionId); // prevent duplicates
                 }
             }
+        }
+
+        // Add all rewards after iteration to avoid modifying collection while enumerating
+        foreach (var reward in rewardsToAdd)
+        {
+            user.AddUserReward(reward);
         }
     }
 

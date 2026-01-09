@@ -17,7 +17,7 @@ public class GpsUtil
         rateLimiter.Wait();
         try
         {
-            Sleep();
+            //Sleep();
 
             double longitude = ThreadLocalRandom.NextDouble(-180.0, 180.0);
             longitude = Math.Round(longitude, 6);
@@ -35,13 +35,15 @@ public class GpsUtil
         }
     }
 
+    //see AttractionsDataStore for sample data
     public List<Attraction> GetAttractions()
     {
         rateLimiter.Wait();
 
         try
         {
-            SleepLighter();
+            // Lighter sleep for data retrieval
+            //SleepLighter();
 
             List<Attraction> attractions = new()
         {
@@ -81,12 +83,15 @@ public class GpsUtil
         }
     }
 
+    // Simulate variable response time
     private void Sleep()
     {
+        // Random delay between 30 and 100 milliseconds- CHANGE HERE
         int delay = ThreadLocalRandom.Current.Next(30, 100);
         Thread.Sleep(delay);
     }
 
+    // Lighter sleep for data retrieval
     private void SleepLighter()
     {
         Thread.Sleep(10);
