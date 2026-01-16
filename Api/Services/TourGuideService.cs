@@ -17,11 +17,18 @@ public class TourGuideService : ITourGuideService
     private readonly IGpsUtil _gpsUtil;
     private readonly IRewardsService _rewardsService;
     private readonly TripPricer.TripPricer _tripPricer;
-    public Tracker Tracker { get; private set; }
+
+    // Internal user map for storing users by username
     private readonly Dictionary<string, User> _internalUserMap = new();
     private const string TripPricerApiKey = "test-server-api-key";
-    private bool _testMode = true;
 
+    // Test mode flag
+    private readonly bool _testMode = true;
+
+    // Public Tracker property to access the Tracker instance
+    public Tracker Tracker { get; }
+
+    // Constructor 
     public TourGuideService(ILogger<TourGuideService> logger, IGpsUtil gpsUtil, IRewardsService rewardsService, ILoggerFactory loggerFactory)
     {
         _logger = logger;
@@ -31,6 +38,7 @@ public class TourGuideService : ITourGuideService
 
         CultureInfo.CurrentCulture = new CultureInfo("en-US");
 
+        // Initialize test mode users
         if (_testMode)
         {
             _logger.LogInformation("TestMode enabled");
@@ -39,59 +47,93 @@ public class TourGuideService : ITourGuideService
             _logger.LogDebug("Finished initializing users");
         }
 
+        // Create logger for Tracker
         var trackerLogger = loggerFactory.CreateLogger<Tracker>();
 
+        // Start the tracker
         Tracker = new Tracker(this, trackerLogger);
+
+        // Termination hook to stop tracking on app shutdown 
         AddShutDownHook();
     }
 
+    // method to retrieve user rewards
     public List<UserReward> GetUserRewards(User user)
     {
         return user.UserRewards;
     }
 
-
+    // method to retrieve user location
     public VisitedLocation GetUserLocation(User user)
     {
+        // Return the last visited location if it exists, otherwise track the user's location
         return user.VisitedLocations.Any() ? user.GetLastVisitedLocation() : TrackUserLocation(user);
     }
 
+    // method to retrieve a user by username(change to retrieve by id?)
     public User GetUser(string userName)
     {
+        // Retrieve user from internal user map or return null if not found
         return _internalUserMap.ContainsKey(userName) ? _internalUserMap[userName] : null;
     }
 
+    // method to retrieve all users
     public List<User> GetAllUsers()
     {
+        // Return a list of all users in the internal user map
         return _internalUserMap.Values.ToList();
     }
 
+    // method to add a new user
+    // verify if this does not need more robust user criteria?
     public void AddUser(User user)
     {
+        // Add the user to the internal user map if they do not already exist
         if (!_internalUserMap.ContainsKey(user.UserName))
         {
             _internalUserMap.Add(user.UserName, user);
         }
     }
 
+    // method to get trip deals for a user based on their preferences and rewards.
     public List<Provider> GetTripDeals(User user)
     {
+        // Calculate cumulative reward points from user's rewards
         int cumulativeRewardPoints = user.UserRewards.Sum(i => i.RewardPoints);
+
+        // Retrieve trip deals from TripPricer API based on user details and reward points
         List<Provider> providers = _tripPricer.GetPrice(TripPricerApiKey, user.UserId,
+
+            // User preferences from User object
             user.UserPreferences.NumberOfAdults, user.UserPreferences.NumberOfChildren,
+
+            // User trip duration from User object
             user.UserPreferences.TripDuration, cumulativeRewardPoints);
+
+        // Store the retrieved trip deals in the user's TripDeals property
         user.TripDeals = providers;
+
+        // Return the list of trip deal providers
         return providers;
     }
 
+    // Tracks the user's location, adds it to their visited locations, and calculates rewards
     public VisitedLocation TrackUserLocation(User user)
     {
+        // Call the GPS utility to get the user's current location
         VisitedLocation visitedLocation = _gpsUtil.GetUserLocation(user.UserId);
+
+        // Add the visited location to the user's history
         user.AddToVisitedLocations(visitedLocation);
+
+        // Calculate rewards for the user based on the new location
         _rewardsService.CalculateRewards(user);
+
+        // Return the visited location
         return visitedLocation;
     }
 
+    // Returns a list of the five nearest attractions to the given visited location
     public List<Attraction> GetNearByAttractions(VisitedLocation visitedLocation)
     {
         return _gpsUtil.GetAttractions()
@@ -100,35 +142,7 @@ public class TourGuideService : ITourGuideService
             .ToList();
     }
 
-
-    //public List<NearbyAttractionDto> GetNearbyAttractions(User user)
-    //{
-    //    var visitedLocation = GetUserLocation(user);
-    //    var userLocation = visitedLocation.Location;
-
-    //    return _gpsUtil.GetAttractions()
-    //        .OrderBy(a => _rewardsService.GetDistance(a, userLocation))
-    //        .Take(5)
-    //        .Select(attraction =>
-    //        {
-    //            var distance = _rewardsService.GetDistance(attraction, userLocation);
-    //            var rewardPoints = _rewardsService.GetRewardPoints(attraction, user);
-
-    //            return new NearbyAttractionDto
-    //            {
-    //                AttractionName = attraction.AttractionName,
-    //                AttractionLatitude = attraction.Latitude,
-    //                AttractionLongitude = attraction.Longitude,
-    //                UserLatitude = userLocation.Latitude,
-    //                UserLongitude = userLocation.Longitude,
-    //                DistanceInMiles = distance,
-    //                RewardPoints = rewardPoints
-    //            };
-    //        })
-    //        .ToList();
-    //}
-
-
+    // Adds a shutdown hook to stop the tracker when the application exits
     private void AddShutDownHook()
     {
         AppDomain.CurrentDomain.ProcessExit += (sender, e) => Tracker.StopTracking();

@@ -12,7 +12,7 @@ namespace TourGuide.Services.Interfaces
 
         void AddUser(User user);
         List<User> GetAllUsers();
-        //List<NearbyAttractionDto> GetNearbyAttractions(User user);
+
         List<Attraction> GetNearByAttractions(VisitedLocation visitedLocation);
         List<Provider> GetTripDeals(User user);
         User GetUser(string userName);

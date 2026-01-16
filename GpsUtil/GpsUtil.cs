@@ -12,13 +12,18 @@ public class GpsUtil
 {
     private static readonly SemaphoreSlim rateLimiter = new(1000, 1000);
 
+    // Simulate retrieval of user location with random coordinates
     public VisitedLocation GetUserLocation(Guid userId)
     {
+        // Enforce rate limiting for location retrieval
         rateLimiter.Wait();
+
         try
         {
-            //Sleep();
+            // Simulate variable response time
+            Sleep();
 
+            // Generate random longitude and latitude 
             double longitude = ThreadLocalRandom.NextDouble(-180.0, 180.0);
             longitude = Math.Round(longitude, 6);
 
@@ -35,7 +40,7 @@ public class GpsUtil
         }
     }
 
-    //see AttractionsDataStore for sample data
+    //attractions data is hardcoded for testing purposes
     public List<Attraction> GetAttractions()
     {
         rateLimiter.Wait();
@@ -43,7 +48,7 @@ public class GpsUtil
         try
         {
             // Lighter sleep for data retrieval
-            //SleepLighter();
+            SleepLighter();
 
             List<Attraction> attractions = new()
         {
@@ -83,10 +88,10 @@ public class GpsUtil
         }
     }
 
-    // Simulate variable response time
+    //// Simulate variable response time for location retrieval
     private void Sleep()
     {
-        // Random delay between 30 and 100 milliseconds- CHANGE HERE
+        // Random delay between 30 and 100 milliseconds
         int delay = ThreadLocalRandom.Current.Next(30, 100);
         Thread.Sleep(delay);
     }
@@ -94,6 +99,7 @@ public class GpsUtil
     // Lighter sleep for data retrieval
     private void SleepLighter()
     {
+        // Fixed delay of 10 milliseconds (suspending the thread)
         Thread.Sleep(10);
     }
 }

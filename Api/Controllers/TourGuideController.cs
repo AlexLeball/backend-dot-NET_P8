@@ -15,9 +15,10 @@ public class TourGuideController : ControllerBase
     private readonly ITourGuideService _tourGuideService;
     private readonly IRewardCentral _rewardCentral;
 
-    public TourGuideController(ITourGuideService tourGuideService)
+    public TourGuideController(ITourGuideService tourGuideService, IRewardCentral rewardCentral)
     {
-        _tourGuideService = tourGuideService;
+        _tourGuideService = tourGuideService ?? throw new ArgumentNullException(nameof(tourGuideService));
+        _rewardCentral = rewardCentral ?? throw new ArgumentNullException(nameof(rewardCentral));
     }
 
     [HttpGet("getLocation")]
