@@ -5,6 +5,9 @@ namespace TourGuide.Users;
 
 public class User
 {
+    private readonly object _rewardLock = new();
+    private readonly HashSet<Guid> _rewardedAttractions = new();
+
     public Guid UserId { get; }
     public string UserName { get; }
     public string PhoneNumber { get; set; }
@@ -14,7 +17,7 @@ public class User
     public List<UserReward> UserRewards { get; } = new List<UserReward>();
     public UserPreferences UserPreferences { get; set; } = new UserPreferences();
     public List<Provider> TripDeals { get; set; } = new List<Provider>();
-
+    
     public User(Guid userId, string userName, string phoneNumber, string emailAddress)
     {
         UserId = userId;
@@ -35,9 +38,13 @@ public class User
 
     public void AddUserReward(UserReward userReward)
     {
-        if (!UserRewards.Exists(r => r.Attraction.AttractionName == userReward.Attraction.AttractionName))
+        lock (_rewardLock)
         {
-            UserRewards.Add(userReward);
+            // utiliser AttractionId pour la déduplication (consistant avec RewardsService)
+            if (_rewardedAttractions.Add(userReward.Attraction.AttractionId))
+            {
+                UserRewards.Add(userReward);
+            }
         }
     }
 

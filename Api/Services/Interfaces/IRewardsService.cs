@@ -9,6 +9,7 @@ namespace TourGuide.Services.Interfaces
         double GetDistance(Locations loc1, Locations loc2);
         bool IsWithinAttractionProximity(Attraction attraction, Locations location);
         void SetDefaultProximityBuffer();
+        int GetRewardPoints(Attraction attraction, User user);
         void SetProximityBuffer(int proximityBuffer);
     }
 }

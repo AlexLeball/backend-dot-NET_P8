@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Globalization;
 using TourGuide.LibrairiesWrappers.Interfaces;
+using TourGuide.Models;
 using TourGuide.Services.Interfaces;
 using TourGuide.Users;
 using TourGuide.Utilities;
@@ -49,6 +50,7 @@ public class TourGuideService : ITourGuideService
         return user.UserRewards;
     }
 
+
     public VisitedLocation GetUserLocation(User user)
     {
         return user.VisitedLocations.Any() ? user.GetLastVisitedLocation() : TrackUserLocation(user);
@@ -92,17 +94,40 @@ public class TourGuideService : ITourGuideService
 
     public List<Attraction> GetNearByAttractions(VisitedLocation visitedLocation)
     {
-        List<Attraction> nearbyAttractions = new ();
-        foreach (var attraction in _gpsUtil.GetAttractions())
-        {
-            if (_rewardsService.IsWithinAttractionProximity(attraction, visitedLocation.Location))
-            {
-                nearbyAttractions.Add(attraction);
-            }
-        }
-
-        return nearbyAttractions;
+        return _gpsUtil.GetAttractions()
+            .OrderBy(a => _rewardsService.GetDistance(a, visitedLocation.Location))
+            .Take(5)
+            .ToList();
     }
+
+
+    //public List<NearbyAttractionDto> GetNearbyAttractions(User user)
+    //{
+    //    var visitedLocation = GetUserLocation(user);
+    //    var userLocation = visitedLocation.Location;
+
+    //    return _gpsUtil.GetAttractions()
+    //        .OrderBy(a => _rewardsService.GetDistance(a, userLocation))
+    //        .Take(5)
+    //        .Select(attraction =>
+    //        {
+    //            var distance = _rewardsService.GetDistance(attraction, userLocation);
+    //            var rewardPoints = _rewardsService.GetRewardPoints(attraction, user);
+
+    //            return new NearbyAttractionDto
+    //            {
+    //                AttractionName = attraction.AttractionName,
+    //                AttractionLatitude = attraction.Latitude,
+    //                AttractionLongitude = attraction.Longitude,
+    //                UserLatitude = userLocation.Latitude,
+    //                UserLongitude = userLocation.Longitude,
+    //                DistanceInMiles = distance,
+    //                RewardPoints = rewardPoints
+    //            };
+    //        })
+    //        .ToList();
+    //}
+
 
     private void AddShutDownHook()
     {
