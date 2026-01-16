@@ -1,8 +1,10 @@
 ﻿using GpsUtil.Location;
 using Microsoft.AspNetCore.Mvc;
+using TourGuide.Models;
 using TourGuide.Services.Interfaces;
 using TourGuide.Users;
 using TripPricer;
+using TourGuide.LibrairiesWrappers.Interfaces;
 
 namespace TourGuide.Controllers;
 
@@ -11,6 +13,7 @@ namespace TourGuide.Controllers;
 public class TourGuideController : ControllerBase
 {
     private readonly ITourGuideService _tourGuideService;
+    private readonly IRewardCentral _rewardCentral;
 
     public TourGuideController(ITourGuideService tourGuideService)
     {
@@ -32,14 +35,42 @@ public class TourGuideController : ControllerBase
     // The user's location lat/long, 
     // The distance in miles between the user's location and each of the attractions.
     // The reward points for visiting each Attraction.
-    //    Note: Attraction reward points can be gathered from RewardsCentral
+    // Note: Attraction reward points can be gathered from RewardsCentral
     [HttpGet("getNearbyAttractions")]
-    public ActionResult<List<Attraction>> GetNearbyAttractions([FromQuery] string userName)
+    public ActionResult<List<NearbyAttractionDto>> GetNearbyAttractions([FromQuery] string userName)
     {
-        var visitedLocation = _tourGuideService.GetUserLocation(GetUser(userName));
-        var attractions = _tourGuideService.GetNearByAttractions(visitedLocation);
-        return Ok(attractions);
+        var user = GetUser(userName);
+        var visitedLocation = _tourGuideService.GetUserLocation(user);
+
+        var nearbyAttractions = _tourGuideService
+            .GetNearByAttractions(visitedLocation)
+            .Select(attraction =>
+            {
+                var distance = GeoUtils.CalculateDistanceMiles(attraction, visitedLocation.Location);
+
+                var rewardPoints = _rewardCentral.GetAttractionRewardPoints(
+                    attraction.AttractionId,
+                    user.UserId);
+
+                return new NearbyAttractionDto
+                {
+                    AttractionName = attraction.AttractionName,
+
+                    AttractionLatitude = attraction.Latitude,
+                    AttractionLongitude = attraction.Longitude,
+
+                    UserLatitude = visitedLocation.Location.Latitude,
+                    UserLongitude = visitedLocation.Location.Longitude,
+
+                    DistanceInMiles = distance,
+                    RewardPoints = rewardPoints
+                };
+            })
+            .ToList();
+
+        return Ok(nearbyAttractions);
     }
+
 
     [HttpGet("getRewards")]
     public ActionResult<List<UserReward>> GetRewards([FromQuery] string userName)
