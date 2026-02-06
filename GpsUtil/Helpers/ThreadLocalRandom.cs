@@ -1,14 +1,18 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
+using System.Security.Cryptography;
 
 namespace GpsUtil.Helpers;
 
+// Thread-safe random number generator for use in multi-threaded environments
 internal static class ThreadLocalRandom
 {
-    private static readonly ThreadLocal<Random> threadLocal = new ThreadLocal<Random>(() => new Random());
+    private static readonly ThreadLocal<Random> threadLocal = new ThreadLocal<Random>(() =>
+    {
+        // seed each thread's Random with a cryptographically secure random number
+        int seed = RandomNumberGenerator.GetInt32(int.MaxValue);
+        return new Random(seed);
+    });
 
     public static Random Current => threadLocal.Value;
 

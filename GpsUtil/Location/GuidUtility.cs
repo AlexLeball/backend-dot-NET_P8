@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 namespace GpsUtil.Location
 {
+    // Utility class to create a GUID from a string input using MD5 hashing
     public static class GuidUtility
     {
         public static Guid Create(string input)

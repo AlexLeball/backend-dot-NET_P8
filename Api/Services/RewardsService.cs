@@ -16,8 +16,8 @@ public class RewardsService : IRewardsService
     private readonly int _attractionProximityRange = 200;
     private readonly IGpsUtil _gpsUtil;
     private readonly IRewardCentral _rewardsCentral;
-    private static int count = 0;
 
+    // Constructor to initialize GPS utility and Rewards Central dependencies
     public RewardsService(IGpsUtil gpsUtil, IRewardCentral rewardCentral)
     {
         _gpsUtil = gpsUtil;
@@ -25,7 +25,7 @@ public class RewardsService : IRewardsService
         _proximityBuffer = _defaultProximityBuffer;
     }
 
-    // Set proximity buffer to desired value
+    // Proximity buffer setter to allow for changes. Checks that user has visited location within the given buffer
     public void SetProximityBuffer(int proximityBuffer)
     {
         _proximityBuffer = proximityBuffer;
@@ -40,57 +40,67 @@ public class RewardsService : IRewardsService
     // Calculate rewards for a user based on their visited locations and nearby attractions
     public void CalculateRewards(User user)
     {
+        // Get all attractions from GPS utility
         var attractions = _gpsUtil.GetAttractions();
 
-        // Snapshot of current rewards to prevent modifying collection while iterating
+        // Existing rewards linked to user (no modifying during iteration)
         var rewardedAttractions = user.UserRewards
             .Select(r => r.Attraction.AttractionId)
             .ToHashSet();
 
-        // Take a snapshot of visited locations to avoid modification issues
+        // Location that the user has already visited (snapshot to avoid modification issues)
         var visitedLocationsSnapshot = user.VisitedLocations.ToList();
 
-        // List to collect rewards to add after iteration
+        // Create a list to hold new rewards to be added
         var rewardsToAdd = new List<UserReward>();
 
+        // Iterate through each visited location
         foreach (var visitedLocation in visitedLocationsSnapshot)
         {
+            // Check each attraction in the list
             foreach (var attraction in attractions)
             {
+                // Skip if user has already been rewarded for this attraction
                 if (rewardedAttractions.Contains(attraction.AttractionId))
                     continue;
 
+                // Otherwise check if the visited location is near the attraction
                 if (NearAttraction(visitedLocation, attraction))
                 {
+                    // Create a new reward and add it to the list
                     rewardsToAdd.Add(new UserReward(
                         visitedLocation,
                         attraction,
                         GetRewardPoints(attraction, user)
                     ));
 
-                    rewardedAttractions.Add(attraction.AttractionId); // prevent duplicates
+                    // Mark this attraction as rewarded to prevent duplicates
+                    rewardedAttractions.Add(attraction.AttractionId);
                 }
             }
         }
 
-        // Add all rewards after iteration to avoid modifying collection while enumerating
+        // Add all reward points to the user after processing to avoid modifying the collection during iteration
         foreach (var reward in rewardsToAdd)
         {
             user.AddUserReward(reward);
         }
     }
 
+    // Check if a location is within the attraction proximity range
     public bool IsWithinAttractionProximity(Attraction attraction, Locations location)
     {
         Console.WriteLine(GetDistance(attraction, location));
         return GetDistance(attraction, location) <= _attractionProximityRange;
     }
 
+    // Check if a visited location is near an attraction based on the proximity buffer
     private bool NearAttraction(VisitedLocation visitedLocation, Attraction attraction)
     {
         return GetDistance(attraction, visitedLocation.Location) <= _proximityBuffer;
     }
 
+    // Get reward points for a given attraction and user from Rewards Central
     public int GetRewardPoints(Attraction attraction, User user)
     {
         return _rewardsCentral.GetAttractionRewardPoints(
@@ -98,22 +108,10 @@ public class RewardsService : IRewardsService
             user.UserId
         );
     }
-    //private int GetRewardPoints(Attraction attraction, User user)
-    //{
-    //    return _rewardsCentral.GetAttractionRewardPoints(attraction.AttractionId, user.UserId);
-    //}
 
+    // Calculate distance between an attraction and a location in miles via the GeoUtils class
     public double GetDistance(Locations loc1, Locations loc2)
     {
-        double lat1 = Math.PI * loc1.Latitude / 180.0;
-        double lon1 = Math.PI * loc1.Longitude / 180.0;
-        double lat2 = Math.PI * loc2.Latitude / 180.0;
-        double lon2 = Math.PI * loc2.Longitude / 180.0;
-
-        double angle = Math.Acos(Math.Sin(lat1) * Math.Sin(lat2)
-                                + Math.Cos(lat1) * Math.Cos(lat2) * Math.Cos(lon1 - lon2));
-
-        double nauticalMiles = 60.0 * angle * 180.0 / Math.PI;
-        return StatuteMilesPerNauticalMile * nauticalMiles;
+        return GeoUtils.CalculateDistanceMiles(loc1, loc2);
     }
 }

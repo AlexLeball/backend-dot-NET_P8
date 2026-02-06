@@ -6,6 +6,7 @@ public static class GeoUtils
 
     private static double ToRadians(double degrees) => degrees * Math.PI / 180.0;
 
+    // Haversine formula to calculate the distance between two locations in miles then applied to location and attractions visited by users
     public static double CalculateDistanceMiles(Locations a, Locations b)
     {
         var dLat = ToRadians(b.Latitude - a.Latitude);
