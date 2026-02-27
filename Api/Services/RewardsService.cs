@@ -3,6 +3,7 @@ using System.Linq;
 using TourGuide.LibrairiesWrappers.Interfaces;
 using TourGuide.Services.Interfaces;
 using TourGuide.Users;
+using System.Threading.Tasks;
 
 namespace TourGuide.Services;
 
@@ -48,26 +49,20 @@ public class RewardsService : IRewardsService
             .Select(r => r.Attraction.AttractionId)
             .ToHashSet();
 
-        // Location that the user has already visited (snapshot to avoid modification issues)
-        var visitedLocationsSnapshot = user.VisitedLocations.ToList();
+        // Utilisez la méthode sécurisée pour obtenir un snapshot des locations visitées
+        var visitedLocationsSnapshot = user.GetVisitedLocationsSnapshot();
 
-        // Create a list to hold new rewards to be added
         var rewardsToAdd = new List<UserReward>();
 
-        // Iterate through each visited location
         foreach (var visitedLocation in visitedLocationsSnapshot)
         {
-            // Check each attraction in the list
             foreach (var attraction in attractions)
             {
-                // Skip if user has already been rewarded for this attraction
                 if (rewardedAttractions.Contains(attraction.AttractionId))
                     continue;
 
-                // Otherwise check if the visited location is near the attraction
                 if (NearAttraction(visitedLocation, attraction))
                 {
-                    // Create a new reward and add it to the list
                     rewardsToAdd.Add(new UserReward(
                         visitedLocation,
                         attraction,
@@ -85,6 +80,12 @@ public class RewardsService : IRewardsService
         {
             user.AddUserReward(reward);
         }
+    }
+
+    // Async wrapper for CalculateRewards to keep API async-friendly
+    public async Task CalculateRewardsAsync(User user)
+    {
+        await Task.Run(() => CalculateRewards(user)).ConfigureAwait(false);
     }
 
     // Check if a location is within the attraction proximity range

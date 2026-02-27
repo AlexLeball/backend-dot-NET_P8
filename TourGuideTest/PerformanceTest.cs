@@ -45,20 +45,23 @@ namespace TourGuideTest
         }
 
         [Fact]
-        public void HighVolumeTrackLocation()
+        public async Task HighVolumeTrackLocation()
         {
             //On peut ici augmenter le nombre d'utilisateurs pour tester les performances
-            _fixture.Initialize(1000);
+            _fixture.Initialize(100000);
 
             List<User> allUsers = _fixture.TourGuideService.GetAllUsers();
 
             Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();
 
-            foreach (var user in allUsers)
+            // Exécution asynchrone en parallèle (bounded on service side)
+            var options = new ParallelOptions { MaxDegreeOfParallelism = 100 };
+            await Parallel.ForEachAsync(allUsers, options, async (user, ct) =>
             {
-                _fixture.TourGuideService.TrackUserLocation(user);
-            }
+                await _fixture.TourGuideService.TrackUserLocationAsync(user).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+
             stopWatch.Stop();
             _fixture.TourGuideService.Tracker.StopTracking();
 
@@ -68,10 +71,10 @@ namespace TourGuideTest
         }
 
         [Fact]
-        public void HighVolumeGetRewards()
+        public async Task HighVolumeGetRewards()
         {
             //On peut ici augmenter le nombre d'utilisateurs pour tester les performances
-            _fixture.Initialize(10);
+            _fixture.Initialize(100000);
 
             Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();
@@ -80,7 +83,11 @@ namespace TourGuideTest
             List<User> allUsers = _fixture.TourGuideService.GetAllUsers();
             allUsers.ForEach(u => u.AddToVisitedLocations(new VisitedLocation(u.UserId, attraction, DateTime.Now)));
 
-            allUsers.ForEach(u => _fixture.RewardsService.CalculateRewards(u));
+            var options = new ParallelOptions { MaxDegreeOfParallelism = 100 };
+            await Parallel.ForEachAsync(allUsers, options, async (u, ct) =>
+            {
+                await _fixture.RewardsService.CalculateRewardsAsync(u).ConfigureAwait(false);
+            }).ConfigureAwait(false);
 
             foreach (var user in allUsers)
             {

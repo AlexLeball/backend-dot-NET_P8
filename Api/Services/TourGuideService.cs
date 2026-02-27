@@ -8,6 +8,8 @@ using TourGuide.Services.Interfaces;
 using TourGuide.Users;
 using TourGuide.Utilities;
 using TripPricer;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace TourGuide.Services;
 
@@ -27,6 +29,9 @@ public class TourGuideService : ITourGuideService
 
     // Public Tracker property to access the Tracker instance
     public Tracker Tracker { get; }
+
+    // Bound for concurrent outbound GPS calls (bounded async handled here)
+    private readonly SemaphoreSlim _gpsCallSemaphore = new SemaphoreSlim(100, 100);
 
     // Constructor 
     public TourGuideService(ILogger<TourGuideService> logger, IGpsUtil gpsUtil, IRewardsService rewardsService, ILoggerFactory loggerFactory)
@@ -63,18 +68,27 @@ public class TourGuideService : ITourGuideService
         return user.UserRewards;
     }
 
-    // method to retrieve user location
+    // method to retrieve user location (synchronous façade)
     public VisitedLocation GetUserLocation(User user)
     {
-        // Return the last visited location if it exists, otherwise track the user's location
-        return user.VisitedLocations.Any() ? user.GetLastVisitedLocation() : TrackUserLocation(user);
+        return user.VisitedLocations.Any()
+            ? user.GetLastVisitedLocation()
+            : GetUserLocationAsync(user).GetAwaiter().GetResult();
+    }
+
+    // New async GetUserLocation
+    public Task<VisitedLocation> GetUserLocationAsync(User user)
+    {
+        return user.VisitedLocations.Any()
+            ? Task.FromResult(user.GetLastVisitedLocation())
+            : TrackUserLocationAsync(user);
     }
 
     // method to retrieve a user by username(change to retrieve by id?)
     public User GetUser(string userName)
     {
         // Retrieve user from internal user map or return null if not found
-        return _internalUserMap.ContainsKey(userName) ? _internalUserMap[userName] : null;
+        return _internalUserMap.TryGetValue(userName, out var user) ? user : null!;
     }
 
     // method to retrieve all users
@@ -117,20 +131,27 @@ public class TourGuideService : ITourGuideService
         return providers;
     }
 
-    // Tracks the user's location, adds it to their visited locations, and calculates rewards
+    // Tracks the user's location, adds it to their visited locations, and calculates rewards (async, bounded)
+    public async Task<VisitedLocation> TrackUserLocationAsync(User user)
+    {
+        await _gpsCallSemaphore.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            var visitedLocation = await _gpsUtil.GetUserLocationAsync(user.UserId).ConfigureAwait(false);
+            user.AddToVisitedLocations(visitedLocation);
+            await _rewardsService.CalculateRewardsAsync(user).ConfigureAwait(false);
+            return visitedLocation;
+        }
+        finally
+        {
+            _gpsCallSemaphore.Release();
+        }
+    }
+
+    // Synchronous TrackUserLocation to satisfy interface (facade)
     public VisitedLocation TrackUserLocation(User user)
     {
-        // Call the GPS utility to get the user's current location
-        VisitedLocation visitedLocation = _gpsUtil.GetUserLocation(user.UserId);
-
-        // Add the visited location to the user's history
-        user.AddToVisitedLocations(visitedLocation);
-
-        // Calculate rewards for the user based on the new location
-        _rewardsService.CalculateRewards(user);
-
-        // Return the visited location
-        return visitedLocation;
+        return TrackUserLocationAsync(user).GetAwaiter().GetResult();
     }
 
     // Returns a list of the five nearest attractions to the given visited location

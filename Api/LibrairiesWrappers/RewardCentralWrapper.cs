@@ -13,7 +13,8 @@ namespace TourGuide.LibrairiesWrappers
 
         public int GetAttractionRewardPoints(Guid attractionId, Guid userId)
         {
-            return _rewardCentral.GetAttractionRewardPoints(attractionId, userId);
+            // Appel de la méthode asynchrone et attente du résultat de façon synchrone
+            return _rewardCentral.GetAttractionRewardPointsAsync(attractionId, userId).GetAwaiter().GetResult();
         }
     }
 }

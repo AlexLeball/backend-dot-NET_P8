@@ -1,5 +1,6 @@
 ﻿using GpsUtil.Location;
 using TourGuide.LibrairiesWrappers.Interfaces;
+using System.Threading.Tasks;
 
 namespace TourGuide.LibrairiesWrappers;
 
@@ -14,11 +15,18 @@ public class GpsUtilWrapper : IGpsUtil
 
     public VisitedLocation GetUserLocation(Guid userId)
     {
-        return _gpsUtil.GetUserLocation(userId);
+        // Appel synchrone à partir de la méthode asynchrone
+        return _gpsUtil.GetUserLocationAsync(userId).GetAwaiter().GetResult();
+    }
+
+    public async Task<VisitedLocation> GetUserLocationAsync(Guid userId)
+    {
+        return await _gpsUtil.GetUserLocationAsync(userId).ConfigureAwait(false);
     }
 
     public List<Attraction> GetAttractions()
     {
-        return _gpsUtil.GetAttractions();
+        // Appel synchrone à partir de la méthode asynchrone
+        return _gpsUtil.GetAttractionsAsync().GetAwaiter().GetResult();
     }
 }

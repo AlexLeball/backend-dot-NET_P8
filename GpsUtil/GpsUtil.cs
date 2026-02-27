@@ -1,9 +1,10 @@
 ﻿using GpsUtil.Helpers;
 using GpsUtil.Location;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GpsUtil;
@@ -11,17 +12,22 @@ namespace GpsUtil;
 public class GpsUtil
 {
     private static readonly SemaphoreSlim rateLimiter = new(1000, 1000);
+    private static readonly ConcurrentDictionary<Guid, VisitedLocation> locationCache = new();
 
-    // Simulate retrieval of user location with random coordinates
-    public VisitedLocation GetUserLocation(Guid userId)
+    // Simulate retrieval of user location with caching
+    public async Task<VisitedLocation> GetUserLocationAsync(Guid userId)
     {
-        // Enforce rate limiting for location retrieval
-        rateLimiter.Wait();
+        if (locationCache.TryGetValue(userId, out var cachedLocation))
+        {
+            return cachedLocation;
+        }
+
+        await rateLimiter.WaitAsync();
 
         try
         {
             // Simulate variable response time
-            Sleep();
+            await Task.Delay(ThreadLocalRandom.Current.Next(30, 100));
 
             // Generate random longitude and latitude 
             double longitude = ThreadLocalRandom.NextDouble(-180.0, 180.0);
@@ -30,7 +36,8 @@ public class GpsUtil
             double latitude = ThreadLocalRandom.NextDouble(-90, 90);
             latitude = Math.Round(latitude, 6);
 
-            VisitedLocation visitedLocation = new(userId, new Locations(latitude, longitude), DateTime.UtcNow);
+            var visitedLocation = new VisitedLocation(userId, new Locations(latitude, longitude), DateTime.UtcNow);
+            locationCache[userId] = visitedLocation;
 
             return visitedLocation;
         }
@@ -40,15 +47,13 @@ public class GpsUtil
         }
     }
 
-    //attractions data is hardcoded for testing purposes
-    public List<Attraction> GetAttractions()
+    // Optimized attractions retrieval
+    public async Task<List<Attraction>> GetAttractionsAsync()
     {
-        rateLimiter.Wait();
+        await rateLimiter.WaitAsync();
 
         try
         {
-            // Lighter sleep for data retrieval
-            SleepLighter();
 
             List<Attraction> attractions = new()
         {
@@ -86,20 +91,5 @@ public class GpsUtil
         {
             rateLimiter.Release();
         }
-    }
-
-    //// Simulate variable response time for location retrieval
-    private void Sleep()
-    {
-        // Random delay between 30 and 100 milliseconds
-        int delay = ThreadLocalRandom.Current.Next(30, 100);
-        Thread.Sleep(delay);
-    }
-
-    // Lighter sleep for data retrieval
-    private void SleepLighter()
-    {
-        // Fixed delay of 10 milliseconds (suspending the thread)
-        Thread.Sleep(10);
     }
 }

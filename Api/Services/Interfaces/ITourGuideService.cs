@@ -3,6 +3,7 @@ using TourGuide.Models;
 using TourGuide.Users;
 using TourGuide.Utilities;
 using TripPricer;
+using System.Threading.Tasks;
 
 namespace TourGuide.Services.Interfaces
 {
@@ -17,7 +18,9 @@ namespace TourGuide.Services.Interfaces
         List<Provider> GetTripDeals(User user);
         User GetUser(string userName);
         VisitedLocation GetUserLocation(User user);
+        Task<VisitedLocation> GetUserLocationAsync(User user);
         List<UserReward> GetUserRewards(User user);
         VisitedLocation TrackUserLocation(User user);
+        Task<VisitedLocation> TrackUserLocationAsync(User user);
     }
 }

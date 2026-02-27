@@ -10,6 +10,7 @@ public class User
 {
     private readonly object _rewardLock = new();
     private readonly HashSet<Guid> _rewardedAttractionIds = new();
+    private readonly object _visitedLocationsLock = new();
     public Guid UserId { get; }
     public string UserName { get; }
     public string PhoneNumber { get; set; }
@@ -28,14 +29,21 @@ public class User
         EmailAddress = emailAddress;
     }
 
+    public IReadOnlyList<VisitedLocation> GetVisitedLocationsSnapshot()
+    {
+        lock (_visitedLocationsLock)
+        {
+            return VisitedLocations.ToList();
+        }
+    }
+
     // Add a visited location and update the latest location timestamp
     public void AddToVisitedLocations(VisitedLocation visitedLocation)
     {
-        if (visitedLocation is null) throw new ArgumentNullException(nameof(visitedLocation));
-        //add visited location to list
-        VisitedLocations.Add(visitedLocation);
-        //update latest location timestamp if the new visited location is more recent
-        LatestLocationTimestamp = visitedLocation.TimeVisited;
+        lock (_visitedLocationsLock)
+        {
+            VisitedLocations.Add(visitedLocation);
+        }
     }
 
     // Clear all visited locations
