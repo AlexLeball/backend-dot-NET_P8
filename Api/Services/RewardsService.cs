@@ -1,9 +1,7 @@
 ﻿using GpsUtil.Location;
-using System.Linq;
 using TourGuide.LibrairiesWrappers.Interfaces;
 using TourGuide.Services.Interfaces;
 using TourGuide.Users;
-using System.Threading.Tasks;
 
 namespace TourGuide.Services;
 

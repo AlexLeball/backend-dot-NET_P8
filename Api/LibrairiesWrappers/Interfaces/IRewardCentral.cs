@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace TourGuide.LibrairiesWrappers.Interfaces
+﻿namespace TourGuide.LibrairiesWrappers.Interfaces
 {
     public interface IRewardCentral
     {

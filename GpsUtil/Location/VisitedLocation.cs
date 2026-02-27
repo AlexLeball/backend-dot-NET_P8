@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace GpsUtil.Location;
+﻿namespace GpsUtil.Location;
 //<summary>
 // Represents a location visited by a user, including the user ID, location details, and the time of the visit.
 // used to track user movements and locations visited.

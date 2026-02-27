@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using GpsUtil.Location;
+﻿using GpsUtil.Location;
 using TripPricer;
 using TourGuide.Users;
 

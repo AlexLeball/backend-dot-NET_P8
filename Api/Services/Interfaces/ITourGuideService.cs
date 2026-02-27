@@ -1,9 +1,7 @@
 ﻿using GpsUtil.Location;
-using TourGuide.Models;
 using TourGuide.Users;
 using TourGuide.Utilities;
 using TripPricer;
-using System.Threading.Tasks;
 
 namespace TourGuide.Services.Interfaces
 {

@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using GpsUtil.Location;
-using TourGuide.Models;
+﻿using GpsUtil.Location;
 using TripPricer;
 
 namespace TourGuide.Users;

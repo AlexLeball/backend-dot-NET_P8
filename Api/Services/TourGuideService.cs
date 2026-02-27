@@ -1,15 +1,10 @@
 ﻿using GpsUtil.Location;
-using Microsoft.Extensions.Logging;
-using System.Diagnostics;
 using System.Globalization;
 using TourGuide.LibrairiesWrappers.Interfaces;
-using TourGuide.Models;
 using TourGuide.Services.Interfaces;
 using TourGuide.Users;
 using TourGuide.Utilities;
 using TripPricer;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace TourGuide.Services;
 

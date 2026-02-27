@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace GpsUtil.Location;
+﻿namespace GpsUtil.Location;
 
 // Basic class to represent geographical locations with latitude and longitude
 public class Locations

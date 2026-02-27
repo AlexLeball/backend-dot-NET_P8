@@ -1,6 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
 using TourGuide.Services.Interfaces;
 using TourGuide.Users;
 

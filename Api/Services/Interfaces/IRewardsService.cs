@@ -1,6 +1,6 @@
 ﻿using GpsUtil.Location;
 using TourGuide.Users;
-using System.Threading.Tasks;
+
 
 namespace TourGuide.Services.Interfaces
 {
