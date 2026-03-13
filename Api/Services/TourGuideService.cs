@@ -63,14 +63,6 @@ public class TourGuideService : ITourGuideService
         return user.UserRewards;
     }
 
-    // method to retrieve user location (synchronous façade)
-    public VisitedLocation GetUserLocation(User user)
-    {
-        return user.VisitedLocations.Any()
-            ? user.GetLastVisitedLocation()
-            : GetUserLocationAsync(user).GetAwaiter().GetResult();
-    }
-
     // New async GetUserLocation
     public Task<VisitedLocation> GetUserLocationAsync(User user)
     {
@@ -143,16 +135,11 @@ public class TourGuideService : ITourGuideService
         }
     }
 
-    // Synchronous TrackUserLocation to satisfy interface (facade)
-    public VisitedLocation TrackUserLocation(User user)
+    // async method to return nearby attractions
+    public async Task<List<Attraction>> GetNearByAttractionsAsync(VisitedLocation visitedLocation)
     {
-        return TrackUserLocationAsync(user).GetAwaiter().GetResult();
-    }
-
-    // Returns a list of the five nearest attractions to the given visited location
-    public List<Attraction> GetNearByAttractions(VisitedLocation visitedLocation)
-    {
-        return _gpsUtil.GetAttractions()
+        var attractions = await _gpsUtil.GetAttractionsAsync();
+        return attractions
             .OrderBy(a => _rewardsService.GetDistance(a, visitedLocation.Location))
             .Take(5)
             .ToList();
@@ -191,8 +178,6 @@ public class TourGuideService : ITourGuideService
             user.AddToVisitedLocations(visitedLocation);
         }
     }
-
-    private static readonly Random random = new Random();
 
     private double GenerateRandomLongitude()
     {

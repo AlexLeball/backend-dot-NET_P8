@@ -3,8 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using TourGuide.Models;
 using TourGuide.Services.Interfaces;
 using TourGuide.Users;
-using TripPricer;
 using TourGuide.LibrairiesWrappers.Interfaces;
+using TripPricer;
 
 namespace TourGuide.Controllers;
 
@@ -12,6 +12,8 @@ namespace TourGuide.Controllers;
 [Route("[controller]")]
 public class TourGuideController : ControllerBase
 {
+    private const double MilesToKilometers = 1.609344;
+
     private readonly ITourGuideService _tourGuideService;
     private readonly IRewardCentral _rewardCentral;
 
@@ -22,56 +24,40 @@ public class TourGuideController : ControllerBase
     }
 
     [HttpGet("getLocation")]
-    public ActionResult<VisitedLocation> GetLocation([FromQuery] string userName)
+    public async Task<ActionResult<VisitedLocation>> GetLocationAsync([FromQuery] string userName)
     {
-        var location = _tourGuideService.GetUserLocation(GetUser(userName));
+        var location = await _tourGuideService.GetUserLocationAsync(GetUser(userName));
         return Ok(location);
     }
 
-    // TODO: Change this method to no longer return a List of Attractions.
-    // Instead: Get the closest five tourist attractions to the user - no matter how far away they are.
-    // Return a new JSON object that contains:
-    // Name of Tourist attraction, 
-    // Tourist attractions lat/long, 
-    // The user's location lat/long, 
-    // The distance in miles between the user's location and each of the attractions.
-    // The reward points for visiting each Attraction.
-    // Note: Attraction reward points can be gathered from RewardsCentral
+    /// <summary>
+    /// Returns the 5 closest attractions to the user with distance (km) and reward points.
+    /// </summary>
     [HttpGet("getNearbyAttractions")]
-    public ActionResult<List<NearbyAttractionDto>> GetNearbyAttractions([FromQuery] string userName)
+    public async Task<ActionResult<List<NearbyAttractionDto>>> GetNearbyAttractionsAsync([FromQuery] string userName)
     {
         var user = GetUser(userName);
-        var visitedLocation = _tourGuideService.GetUserLocation(user);
+        var visitedLocation = await _tourGuideService.GetUserLocationAsync(user);
+        var nearbyAttractions = await _tourGuideService.GetNearByAttractionsAsync(visitedLocation);
 
-        var nearbyAttractions = _tourGuideService
-            .GetNearByAttractions(visitedLocation)
-            .Select(attraction =>
+        var result = nearbyAttractions.Select(attraction =>
+        {
+            var distanceMiles = GeoUtils.CalculateDistanceMiles(attraction, visitedLocation.Location);
+
+            return new NearbyAttractionDto
             {
-                var distance = GeoUtils.CalculateDistanceMiles(attraction, visitedLocation.Location);
+                AttractionName = attraction.AttractionName,
+                AttractionLatitude = attraction.Latitude,
+                AttractionLongitude = attraction.Longitude,
+                UserLatitude = visitedLocation.Location.Latitude,
+                UserLongitude = visitedLocation.Location.Longitude,
+                DistanceInKilometers = Math.Round(distanceMiles * MilesToKilometers, 2),
+                RewardPoints = _rewardCentral.GetAttractionRewardPoints(attraction.AttractionId, user.UserId)
+            };
+        }).ToList();
 
-                var rewardPoints = _rewardCentral.GetAttractionRewardPoints(
-                    attraction.AttractionId,
-                    user.UserId);
-
-                return new NearbyAttractionDto
-                {
-                    AttractionName = attraction.AttractionName,
-
-                    AttractionLatitude = attraction.Latitude,
-                    AttractionLongitude = attraction.Longitude,
-
-                    UserLatitude = visitedLocation.Location.Latitude,
-                    UserLongitude = visitedLocation.Location.Longitude,
-
-                    DistanceInMiles = distance,
-                    RewardPoints = rewardPoints
-                };
-            })
-            .ToList();
-
-        return Ok(nearbyAttractions);
+        return Ok(result);
     }
-
 
     [HttpGet("getRewards")]
     public ActionResult<List<UserReward>> GetRewards([FromQuery] string userName)

@@ -7,7 +7,6 @@ namespace TourGuide.Services;
 
 public class RewardsService : IRewardsService
 {
-    private const double StatuteMilesPerNauticalMile = 1.15077945;
 
     //default buffer for proximity is 10 miles this can be changed via the setProximityBuffer method
     private readonly int _defaultProximityBuffer = 10;
@@ -36,60 +35,56 @@ public class RewardsService : IRewardsService
         _proximityBuffer = _defaultProximityBuffer;
     }
 
-    // Calculate rewards for a user based on their visited locations and nearby attractions
-    public void CalculateRewards(User user)
-    {
-        // Get all attractions from GPS utility
-        var attractions = _gpsUtil.GetAttractions();
 
-        // Existing rewards linked to user (no modifying during iteration)
-        var rewardedAttractions = user.UserRewards
+    public async Task CalculateRewardsAsync(User user)
+    {
+
+        {
+            // Get all attractions from GPS utility
+            var attractions = await _gpsUtil.GetAttractionsAsync();
+
+            // Existing rewards linked to user (no modifying during iteration)
+            var rewardedAttractions = user.UserRewards
             .Select(r => r.Attraction.AttractionId)
             .ToHashSet();
 
-        // Utilisez la méthode sécurisée pour obtenir un snapshot des locations visitées
-        var visitedLocationsSnapshot = user.GetVisitedLocationsSnapshot();
+            // Utilisez la méthode sécurisée pour obtenir un snapshot des locations visitées
+            var visitedLocationsSnapshot = user.GetVisitedLocationsSnapshot();
 
-        var rewardsToAdd = new List<UserReward>();
+            var rewardsToAdd = new List<UserReward>();
 
-        foreach (var visitedLocation in visitedLocationsSnapshot)
-        {
-            foreach (var attraction in attractions)
+            foreach (var visitedLocation in visitedLocationsSnapshot)
             {
-                if (rewardedAttractions.Contains(attraction.AttractionId))
-                    continue;
-
-                if (NearAttraction(visitedLocation, attraction))
+                foreach (var attraction in attractions)
                 {
-                    rewardsToAdd.Add(new UserReward(
-                        visitedLocation,
-                        attraction,
-                        GetRewardPoints(attraction, user)
-                    ));
+                    if (rewardedAttractions.Contains(attraction.AttractionId))
+                        continue;
 
-                    // Mark this attraction as rewarded to prevent duplicates
-                    rewardedAttractions.Add(attraction.AttractionId);
+                    if (NearAttraction(visitedLocation, attraction))
+                    {
+                        rewardsToAdd.Add(new UserReward(
+                            visitedLocation,
+                            attraction,
+                            GetRewardPoints(attraction, user)
+                        ));
+
+                        // Mark this attraction as rewarded to prevent duplicates
+                        rewardedAttractions.Add(attraction.AttractionId);
+                    }
                 }
             }
-        }
 
-        // Add all reward points to the user after processing to avoid modifying the collection during iteration
-        foreach (var reward in rewardsToAdd)
-        {
-            user.AddUserReward(reward);
+            // Add all reward points to the user after processing to avoid modifying the collection during iteration
+            foreach (var reward in rewardsToAdd)
+            {
+                user.AddUserReward(reward);
+            }
         }
-    }
-
-    // Async wrapper for CalculateRewards to keep API async-friendly
-    public async Task CalculateRewardsAsync(User user)
-    {
-        await Task.Run(() => CalculateRewards(user)).ConfigureAwait(false);
     }
 
     // Check if a location is within the attraction proximity range
     public bool IsWithinAttractionProximity(Attraction attraction, Locations location)
     {
-        Console.WriteLine(GetDistance(attraction, location));
         return GetDistance(attraction, location) <= _attractionProximityRange;
     }
 

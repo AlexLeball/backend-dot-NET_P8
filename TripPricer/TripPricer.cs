@@ -12,16 +12,6 @@ public class TripPricer
         // List to hold providers
         List<Provider> providers = new List<Provider>();
 
-        // Test mode with fixed prices
-        if (testMode)
-        {
-            for (int i = 0; i < 10; i++)
-            {
-                providers.Add(new Provider(attractionId, $"Provider {i + 1}", 1000));
-            }
-            return providers;
-        }
-
         // Names of providers to choose from
         string[] allNames = new string[]
         {
