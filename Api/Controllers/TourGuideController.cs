@@ -40,11 +40,13 @@ public class TourGuideController : ControllerBase
         var visitedLocation = await _tourGuideService.GetUserLocationAsync(user);
         var nearbyAttractions = await _tourGuideService.GetNearByAttractionsAsync(visitedLocation);
 
-        var result = nearbyAttractions.Select(attraction =>
+        var result = new List<NearbyAttractionDto>();
+        foreach (var attraction in nearbyAttractions)
         {
             var distanceMiles = GeoUtils.CalculateDistanceMiles(attraction, visitedLocation.Location);
+            var rewardPoints = await _rewardCentral.GetAttractionRewardPointsAsync(attraction.AttractionId, user.UserId);
 
-            return new NearbyAttractionDto
+            result.Add(new NearbyAttractionDto
             {
                 AttractionName = attraction.AttractionName,
                 AttractionLatitude = attraction.Latitude,
@@ -52,9 +54,9 @@ public class TourGuideController : ControllerBase
                 UserLatitude = visitedLocation.Location.Latitude,
                 UserLongitude = visitedLocation.Location.Longitude,
                 DistanceInKilometers = Math.Round(distanceMiles * MilesToKilometers, 2),
-                RewardPoints = _rewardCentral.GetAttractionRewardPoints(attraction.AttractionId, user.UserId)
-            };
-        }).ToList();
+                RewardPoints = rewardPoints
+            });
+        }
 
         return Ok(result);
     }

@@ -1,7 +1,6 @@
 ﻿using GpsUtil.Location;
 using TourGuide.Users;
 
-
 namespace TourGuide.Services.Interfaces
 {
     public interface IRewardsService
@@ -10,7 +9,7 @@ namespace TourGuide.Services.Interfaces
         double GetDistance(Locations loc1, Locations loc2);
         bool IsWithinAttractionProximity(Attraction attraction, Locations location);
         void SetDefaultProximityBuffer();
-        int GetRewardPoints(Attraction attraction, User user);
+        Task<int> GetRewardPointsAsync(Attraction attraction, User user);
         void SetProximityBuffer(int proximityBuffer);
     }
 }
