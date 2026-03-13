@@ -1,4 +1,5 @@
 ﻿using GpsUtil.Location;
+using TourGuide.Models;
 using TripPricer;
 
 namespace TourGuide.Users;
@@ -18,6 +19,7 @@ public class User
     public List<UserReward> UserRewards { get; } = new();
     public UserPreferences UserPreferences { get; set; } = new();
     public List<Provider> TripDeals { get; set; } = new();
+    public List<EventTicket> EventTickets { get; set; } = new();
 
     public User(Guid userId, string userName, string phoneNumber, string emailAddress)
     {

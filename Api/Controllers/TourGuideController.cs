@@ -16,11 +16,14 @@ public class TourGuideController : ControllerBase
 
     private readonly ITourGuideService _tourGuideService;
     private readonly IRewardCentral _rewardCentral;
+    private readonly IEventTicketService _eventTicketService;
 
-    public TourGuideController(ITourGuideService tourGuideService, IRewardCentral rewardCentral)
+    public TourGuideController(ITourGuideService tourGuideService, IRewardCentral rewardCentral,
+        IEventTicketService eventTicketService)
     {
         _tourGuideService = tourGuideService ?? throw new ArgumentNullException(nameof(tourGuideService));
         _rewardCentral = rewardCentral ?? throw new ArgumentNullException(nameof(rewardCentral));
+        _eventTicketService = eventTicketService ?? throw new ArgumentNullException(nameof(eventTicketService));
     }
 
     [HttpGet("getLocation")]
@@ -71,6 +74,18 @@ public class TourGuideController : ControllerBase
     {
         var deals = _tourGuideService.GetTripDeals(GetUser(userName));
         return Ok(deals);
+    }
+
+    /// <summary>
+    /// Returns event ticket deals for a user based on their cumulative reward points and preferences.
+    /// </summary>
+    [HttpGet("getEventTickets")]
+    public ActionResult<List<EventTicket>> GetEventTickets([FromQuery] string userName)
+    {
+        var user = GetUser(userName);
+        var tickets = _eventTicketService.GetEventTicketDeals(user);
+        user.EventTickets = tickets;
+        return Ok(tickets);
     }
 
     private User GetUser(string userName)
