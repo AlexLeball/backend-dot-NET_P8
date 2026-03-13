@@ -16,7 +16,6 @@ builder.Services.AddSingleton<IRewardsService, RewardsService>();
 builder.Services.AddSingleton<ITourGuideService, TourGuideService>();
 builder.Services.AddSingleton<IGpsUtil, GpsUtilWrapper>();
 builder.Services.AddSingleton<IRewardCentral, RewardCentralWrapper>();
-builder.Services.AddSingleton<IEventTicketService, EventTicketService>();
 
 var app = builder.Build();
 
