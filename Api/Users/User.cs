@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using GpsUtil.Location;
+﻿using GpsUtil.Location;
 using TourGuide.Models;
 using TripPricer;
 
@@ -8,17 +6,19 @@ namespace TourGuide.Users;
 
 public class User
 {
+    private readonly object _visitedLocationsLock = new();
     private readonly object _rewardLock = new();
     private readonly HashSet<Guid> _rewardedAttractionIds = new();
+
     public Guid UserId { get; }
     public string UserName { get; }
     public string PhoneNumber { get; set; }
     public string EmailAddress { get; set; }
     public DateTime LatestLocationTimestamp { get; set; }
-    public List<VisitedLocation> VisitedLocations { get; } = new List<VisitedLocation>();
-    public List<UserReward> UserRewards { get; } = new List<UserReward>();
-    public UserPreferences UserPreferences { get; set; } = new UserPreferences();
-    public List<Provider> TripDeals { get; set; } = new List<Provider>();
+    public List<VisitedLocation> VisitedLocations { get; } = new();
+    public List<UserReward> UserRewards { get; } = new();
+    public UserPreferences UserPreferences { get; set; } = new();
+    public List<Provider> TripDeals { get; set; } = new();
 
     public User(Guid userId, string userName, string phoneNumber, string emailAddress)
     {
@@ -28,30 +28,35 @@ public class User
         EmailAddress = emailAddress;
     }
 
-    // Add a visited location and update the latest location timestamp
+    /// <summary>
+    /// Thread-safe snapshot to prevent InvalidOperationException during concurrent enumeration.
+    /// </summary>
+    public IReadOnlyList<VisitedLocation> GetVisitedLocationsSnapshot()
+    {
+        lock (_visitedLocationsLock)
+        {
+            return VisitedLocations.ToList();
+        }
+    }
+
     public void AddToVisitedLocations(VisitedLocation visitedLocation)
     {
-        if (visitedLocation is null) throw new ArgumentNullException(nameof(visitedLocation));
-        //add visited location to list
-        VisitedLocations.Add(visitedLocation);
-        //update latest location timestamp if the new visited location is more recent
-        LatestLocationTimestamp = visitedLocation.TimeVisited;
+        lock (_visitedLocationsLock)
+        {
+            VisitedLocations.Add(visitedLocation);
+            LatestLocationTimestamp = visitedLocation.TimeVisited;
+        }
     }
 
-    // Clear all visited locations
-    public void ClearVisitedLocations()
-    {
-        VisitedLocations.Clear();
-    }
-
-    // Add a user reward if it doesn't already exist
+    /// <summary>
+    /// Thread-safe: prevents duplicate rewards per attraction.
+    /// </summary>
     public void AddUserReward(UserReward userReward)
     {
         if (userReward is null) throw new ArgumentNullException(nameof(userReward));
 
         lock (_rewardLock)
         {
-            // Check if the attraction has already been rewarded to avoid duplicates
             if (_rewardedAttractionIds.Add(userReward.Attraction.AttractionId))
             {
                 UserRewards.Add(userReward);
@@ -59,16 +64,18 @@ public class User
         }
     }
 
-    // Get the most recent visited location by date visited (changed)
+    /// <summary>
+    /// Returns the most recently visited location. Must lock to avoid
+    /// InvalidOperationException if another thread adds concurrently.
+    /// </summary>
     public VisitedLocation GetLastVisitedLocation()
     {
-        // snapshot to avoid threading issues
-        var snapshot = VisitedLocations.ToList();
+        lock (_visitedLocationsLock)
+        {
+            if (VisitedLocations.Count == 0)
+                throw new InvalidOperationException("No visited locations available for this user.");
 
-        if (snapshot.Count == 0)
-            throw new InvalidOperationException("No visited locations available for this user.");
-
-        // Return the visited location with the maximum TimeVisited value
-        return snapshot.MaxBy(v => v.TimeVisited)!;
+            return VisitedLocations.MaxBy(v => v.TimeVisited)!;
+        }
     }
 }

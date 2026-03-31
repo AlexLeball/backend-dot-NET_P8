@@ -1,5 +1,4 @@
 ﻿using GpsUtil.Location;
-using System.Linq;
 using TourGuide.LibrairiesWrappers.Interfaces;
 using TourGuide.Services.Interfaces;
 using TourGuide.Users;
@@ -8,7 +7,6 @@ namespace TourGuide.Services;
 
 public class RewardsService : IRewardsService
 {
-    private const double StatuteMilesPerNauticalMile = 1.15077945;
 
     //default buffer for proximity is 10 miles this can be changed via the setProximityBuffer method
     private readonly int _defaultProximityBuffer = 10;
@@ -37,60 +35,42 @@ public class RewardsService : IRewardsService
         _proximityBuffer = _defaultProximityBuffer;
     }
 
-    // Calculate rewards for a user based on their visited locations and nearby attractions
-    public void CalculateRewards(User user)
+    public async Task CalculateRewardsAsync(User user)
     {
-        // Get all attractions from GPS utility
-        var attractions = _gpsUtil.GetAttractions();
+        var attractions = await _gpsUtil.GetAttractionsAsync().ConfigureAwait(false);
 
-        // Existing rewards linked to user (no modifying during iteration)
         var rewardedAttractions = user.UserRewards
             .Select(r => r.Attraction.AttractionId)
             .ToHashSet();
 
-        // Location that the user has already visited (snapshot to avoid modification issues)
-        var visitedLocationsSnapshot = user.VisitedLocations.ToList();
+        var visitedLocationsSnapshot = user.GetVisitedLocationsSnapshot();
 
-        // Create a list to hold new rewards to be added
         var rewardsToAdd = new List<UserReward>();
 
-        // Iterate through each visited location
         foreach (var visitedLocation in visitedLocationsSnapshot)
         {
-            // Check each attraction in the list
             foreach (var attraction in attractions)
             {
-                // Skip if user has already been rewarded for this attraction
                 if (rewardedAttractions.Contains(attraction.AttractionId))
                     continue;
 
-                // Otherwise check if the visited location is near the attraction
                 if (NearAttraction(visitedLocation, attraction))
                 {
-                    // Create a new reward and add it to the list
-                    rewardsToAdd.Add(new UserReward(
-                        visitedLocation,
-                        attraction,
-                        GetRewardPoints(attraction, user)
-                    ));
-
-                    // Mark this attraction as rewarded to prevent duplicates
+                    var points = await GetRewardPointsAsync(attraction, user).ConfigureAwait(false);
+                    rewardsToAdd.Add(new UserReward(visitedLocation, attraction, points));
                     rewardedAttractions.Add(attraction.AttractionId);
                 }
             }
         }
 
-        // Add all reward points to the user after processing to avoid modifying the collection during iteration
         foreach (var reward in rewardsToAdd)
         {
             user.AddUserReward(reward);
         }
     }
 
-    // Check if a location is within the attraction proximity range
     public bool IsWithinAttractionProximity(Attraction attraction, Locations location)
     {
-        Console.WriteLine(GetDistance(attraction, location));
         return GetDistance(attraction, location) <= _attractionProximityRange;
     }
 
@@ -100,16 +80,14 @@ public class RewardsService : IRewardsService
         return GetDistance(attraction, visitedLocation.Location) <= _proximityBuffer;
     }
 
-    // Get reward points for a given attraction and user from Rewards Central
-    public int GetRewardPoints(Attraction attraction, User user)
+    public async Task<int> GetRewardPointsAsync(Attraction attraction, User user)
     {
-        return _rewardsCentral.GetAttractionRewardPoints(
+        return await _rewardsCentral.GetAttractionRewardPointsAsync(
             attraction.AttractionId,
             user.UserId
-        );
+        ).ConfigureAwait(false);
     }
 
-    // Calculate distance between an attraction and a location in miles via the GeoUtils class
     public double GetDistance(Locations loc1, Locations loc2)
     {
         return GeoUtils.CalculateDistanceMiles(loc1, loc2);

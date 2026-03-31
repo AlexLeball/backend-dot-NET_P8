@@ -1,48 +1,39 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using TourGuide.LibrairiesWrappers.Interfaces;
-using TourGuide.Services.Interfaces;
-using TourGuide.Services;
+﻿using Microsoft.Extensions.Logging;
 using TourGuide.LibrairiesWrappers;
-using Microsoft.Extensions.Logging;
+using TourGuide.LibrairiesWrappers.Interfaces;
+using TourGuide.Services;
+using TourGuide.Services.Interfaces;
 using TourGuide.Utilities;
 
-namespace TourGuideTest
+namespace TourGuideTest;
+
+public class DependencyFixture
 {
-    public class DependencyFixture
+    public IGpsUtil GpsUtil { get; private set; } = null!;
+    public IRewardCentral RewardCentral { get; private set; } = null!;
+    public IRewardsService RewardsService { get; private set; } = null!;
+    public ITourGuideService TourGuideService { get; private set; } = null!;
+
+    public DependencyFixture()
     {
-        public DependencyFixture()
-        {
-            Initialize();            
-        }
+        Initialize();
+    }
 
-        public void Cleanup()
-        {           
-            Initialize();
-        }
+    public void Cleanup()
+    {
+        Initialize();
+    }
 
-        public void Initialize(int internalUserNumber = 100)
-        {
-            var loggerFactory = LoggerFactory.Create(builder =>
-            {
-                builder.AddConsole();
-            });
-            var tourGuideLogger = loggerFactory.CreateLogger<TourGuideService>();
+    public void Initialize(int internalUserNumber = 100)
+    {
+        InternalTestHelper.SetInternalUserNumber(internalUserNumber);
 
-            InternalTestHelper.SetInternalUserNumber(internalUserNumber);
+        var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+        var tourGuideLogger = loggerFactory.CreateLogger<TourGuideService>();
 
-            RewardCentral = new RewardCentralWrapper();
-            GpsUtil = new GpsUtilWrapper();
-            RewardsService = new RewardsService(GpsUtil, RewardCentral);
-            TourGuideService = new TourGuideService(tourGuideLogger, GpsUtil, RewardsService, loggerFactory);
-        }
-
-        public IRewardCentral RewardCentral { get; set; }
-        public IGpsUtil GpsUtil { get; set; }
-        public IRewardsService RewardsService { get; set; }
-        public ITourGuideService TourGuideService { get; set; }
+        GpsUtil = new GpsUtilWrapper();
+        RewardCentral = new RewardCentralWrapper();
+        RewardsService = new RewardsService(GpsUtil, RewardCentral);
+        TourGuideService = new TourGuideService(tourGuideLogger, GpsUtil, RewardsService, loggerFactory);
     }
 }

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TourGuide.LibrairiesWrappers.Interfaces;
+using TourGuide.Services;
 using TourGuide.Services.Interfaces;
 using TourGuide.Users;
 using TourGuide.Utilities;
@@ -43,22 +44,24 @@ namespace TourGuideTest
             _fixture = fixture;
             _output = output;
         }
-
-        [Fact]
-        public void HighVolumeTrackLocation()
+      [Fact]
+        public async Task HighVolumeTrackLocation()
         {
             //On peut ici augmenter le nombre d'utilisateurs pour tester les performances
-            _fixture.Initialize(1000);
+            _fixture.Initialize(100000);
 
             List<User> allUsers = _fixture.TourGuideService.GetAllUsers();
 
             Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();
 
-            foreach (var user in allUsers)
+            // Exécution parallèle au lieu de séquentielle
+            var options = new ParallelOptions { MaxDegreeOfParallelism = 100 };
+            await Parallel.ForEachAsync(allUsers, options, async (user, ct) =>
             {
-                _fixture.TourGuideService.TrackUserLocation(user);
-            }
+                await _fixture.TourGuideService.TrackUserLocationAsync(user).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+
             stopWatch.Stop();
             _fixture.TourGuideService.Tracker.StopTracking();
 
@@ -67,20 +70,26 @@ namespace TourGuideTest
             Assert.True(TimeSpan.FromMinutes(15).TotalSeconds >= stopWatch.Elapsed.TotalSeconds);
         }
 
+
         [Fact]
-        public void HighVolumeGetRewards()
+        public async Task HighVolumeGetRewards()
         {
             //On peut ici augmenter le nombre d'utilisateurs pour tester les performances
-            _fixture.Initialize(10);
+            _fixture.Initialize(100000);
 
             Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();
 
-            Attraction attraction = _fixture.GpsUtil.GetAttractions()[0];
+            List<Attraction> attractions = await _fixture.GpsUtil.GetAttractionsAsync();
+            Attraction attraction = attractions[0];
             List<User> allUsers = _fixture.TourGuideService.GetAllUsers();
             allUsers.ForEach(u => u.AddToVisitedLocations(new VisitedLocation(u.UserId, attraction, DateTime.Now)));
 
-            allUsers.ForEach(u => _fixture.RewardsService.CalculateRewards(u));
+            var options = new ParallelOptions { MaxDegreeOfParallelism = 100 };
+            await Parallel.ForEachAsync(allUsers, options, async (u, ct) =>
+            {
+                await _fixture.RewardsService.CalculateRewardsAsync(u).ConfigureAwait(false);
+            }).ConfigureAwait(false);
 
             foreach (var user in allUsers)
             {

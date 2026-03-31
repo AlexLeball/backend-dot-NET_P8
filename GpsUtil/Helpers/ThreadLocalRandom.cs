@@ -1,6 +1,4 @@
-﻿using System;
-using System.Threading;
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 
 namespace GpsUtil.Helpers;
 

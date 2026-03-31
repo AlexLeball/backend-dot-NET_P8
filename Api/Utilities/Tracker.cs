@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using TourGuide.Services;
 using TourGuide.Services.Interfaces;
 using TourGuide.Users;
 
@@ -48,8 +47,21 @@ public class Tracker
             // Start measuring time taken to track users
             stopwatch.Start();
 
-            // Track each user's location
-            users.ForEach(u => _tourGuideService.TrackUserLocation(u));
+            // Execute tracking in parallel using bounded parallelism
+            // Le degré de parallélisme peut être ajusté selon la configuration du service
+            var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = 100 };
+
+            await Parallel.ForEachAsync(users, parallelOptions, async (u, ct) =>
+            {
+                try
+                {
+                    await _tourGuideService.TrackUserLocationAsync(u).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    // ignore cancellation during shutdown
+                }
+            }).ConfigureAwait(false);
 
             // Stop measuring time
             stopwatch.Stop();
